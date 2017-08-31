@@ -32,6 +32,27 @@ namespace sqlQuery
             }
         }
 
+        public static void AddNewTransactionWithDate(double cost, string categoryGuid, string userGuid, DateTime date, string descrption)
+        {
+            string query = "INSERT INTO dbo.Transactions VALUES (@newid, @cost, @catid, @userid, @date, @description)";
+
+            using (SqlConnection con = new SqlConnection(sqlConnectionString))
+            {
+                con.Open();
+
+                using (SqlCommand cmd = new SqlCommand(query, con))
+                {
+                    cmd.Parameters.Add("@newid", System.Data.SqlDbType.UniqueIdentifier).Value = System.Guid.NewGuid();
+                    cmd.Parameters.Add("@cost", System.Data.SqlDbType.Float).Value = cost;
+                    cmd.Parameters.Add("@catid", System.Data.SqlDbType.UniqueIdentifier).Value = new Guid(categoryGuid);
+                    cmd.Parameters.Add("@userid", System.Data.SqlDbType.UniqueIdentifier).Value = new Guid(userGuid);
+                    cmd.Parameters.Add("@date", System.Data.SqlDbType.DateTime).Value = date.Date;
+                    cmd.Parameters.Add("@description", System.Data.SqlDbType.VarChar, 255).Value = descrption;
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
         public static List<UserTransaction> GetTransactionSum(DateTime day)
         {
             string query = "Select Transactions.Cost, Users.Name, Transactions.Date FROM Transactions INNER JOIN Users ON Transactions.UserId = Users.Id WHERE Transactions.Date = @date AND CategoryId != 'C041805D-5CEA-4043-B349-554ABB638EA4'";
@@ -134,6 +155,141 @@ namespace sqlQuery
                 }
             }
             return additionalPool;
+        }
+
+        /// <summary>
+        /// Returns array of 7 last days without the todays. Order from the oldest to yesterday.
+        /// </summary>
+        /// <returns></returns>
+        public static double[] GetLastWeekTransactionsSum()
+        {
+            string query = "select CAST(Date AS DATE) as 'Date', SUM(Cost) as 'Sum' from dbo.Transactions Where Date >= @dateFrom AND Date <= @dateTo group by CAST(Date AS DATE) order by Date";
+            double[] returnArray = new double[7];
+
+            using (SqlConnection con = new SqlConnection(sqlConnectionString))
+            {
+                con.Open();
+
+                using (SqlCommand cmd = new SqlCommand(query, con))
+                {
+                    cmd.Parameters.Add("@dateFrom", System.Data.SqlDbType.DateTime).Value = DateTime.Today.AddDays(-7);
+                    cmd.Parameters.Add("@dateTo", System.Data.SqlDbType.DateTime).Value = DateTime.Today.AddDays(-1);
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        int i = 0;
+                        while (reader.Read())
+                        {
+                            returnArray[i] = reader.GetDouble(1);
+                            i++;
+                        }
+                    }
+                }
+            }
+            return returnArray;
+        }
+
+        public static bool HasSeenMessage(Guid userGuid)
+        {
+            string query = "Select HasSeenMessage From Users Where Id = @userId";
+            bool result = false;
+
+            using (SqlConnection con = new SqlConnection(sqlConnectionString))
+            {
+                con.Open();
+
+                using (SqlCommand cmd = new SqlCommand(query, con))
+                {
+                    cmd.Parameters.Add("@userId", System.Data.SqlDbType.UniqueIdentifier).Value = userGuid;                    
+                    result = (bool)cmd.ExecuteScalar();
+                }
+            }
+            return result;
+        }
+
+        public static MessageRecord GetMessageData()
+        {
+            string query = "select * from dbo.Settings";
+            MessageRecord mr = new MessageRecord();
+
+            using (SqlConnection con = new SqlConnection(sqlConnectionString))
+            {
+                con.Open();
+
+                using (SqlCommand cmd = new SqlCommand(query, con))
+                {
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            mr.Message = reader.GetString(2);
+                            if (reader.GetGuid(3).ToString().ToUpper().Equals(Users.Andrzej.UGuid))
+                            {
+                                mr.Creator = Users.Andrzej.UName;
+                            }
+                            else if (reader.GetGuid(3).ToString().ToUpper().Equals(Users.Klaudia.UGuid))
+                            {
+                                mr.Creator = Users.Klaudia.UName;
+                            }                            
+                        }
+                    }
+                }
+            }
+            return mr;
+        }
+
+        public static List<TransactionRecord> GetTransactionsHistory()
+        {
+            string query = "Select Top 25 Date, Cost, UserId, CategoryId, Description from dbo.Transactions Order by Date Desc";
+            List<TransactionRecord> returnList = new List<TransactionRecord>();
+
+            using (SqlConnection con = new SqlConnection(sqlConnectionString))
+            {
+                con.Open();
+
+                using (SqlCommand cmd = new SqlCommand(query, con))
+                {
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var tr = new TransactionRecord();
+                            tr.Date = reader.GetDateTime(0);
+                            tr.Cost = reader.GetDouble(1);
+                            tr.Name = Users.GetUserName(reader.GetGuid(2));
+                            tr.Category = Categories.GetCategoryName(reader.GetGuid(3));
+                            try
+                            {
+                                tr.Description = reader.GetString(4);
+                            }
+                            catch (System.Data.SqlTypes.SqlNullValueException)
+                            {
+                                tr.Description = string.Empty;
+                            }
+                            returnList.Add(tr);
+                        }
+                    }
+                }
+            }
+            return returnList;
+        }
+
+        public static void ModifyAmountToSpend(double newAmount)
+        {
+            string query = "UPDATE Settings SET AmountToSpend = @limit";
+
+            using (SqlConnection con = new SqlConnection(sqlConnectionString))
+            {
+                con.Open();
+
+                using (SqlCommand cmd = new SqlCommand(query, con))
+                {
+                    using (SqlCommand cmd3 = new SqlCommand(query, con))
+                    {
+                        cmd3.Parameters.Add("@limit", System.Data.SqlDbType.Float).Value = newAmount;
+                        cmd3.ExecuteNonQuery();
+                    }
+                }
+            }
         }
     }
 }

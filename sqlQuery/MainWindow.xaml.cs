@@ -26,7 +26,13 @@ namespace sqlQuery
             //LibSQLConnection.AddNewTransaction(12.5, Categories.Kosmetyki.CatGuid, Users.Andrzej.UGuid, "test from app");
             //var a = LibSQLConnection.GetTransactionSum(DateTime.Today);
             //var b = LibSQLConnection.GetDailyLimit();
-            var c = LibSQLConnection.GetAdditionalPool();
+            //var c = LibSQLConnection.GetAdditionalPool();
+            //LibSQLConnection.AddNewTransactionWithDate(28, Categories.Kosmetyki.CatGuid, Users.Andrzej.UGuid, DateTime.Today.AddDays(-8), "28.08");
+            //var d = LibSQLConnection.GetLastWeekTransactionsSum();
+            //var e = LibSQLConnection.HasSeenMessage(new Guid(Users.Andrzej.UGuid));
+            //var f = LibSQLConnection.GetMessageData();
+            //var g = LibSQLConnection.GetTransactionsHistory();
+            //LibSQLConnection.ModifyAmountToSpend(780.5);
         }
     }
 }
